@@ -10,6 +10,7 @@ import (
 
 	"github.com/malikbenkirane/mdsick/internal/transformers"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
@@ -32,6 +33,9 @@ func run() error {
 			parser.WithAutoHeadingID(),
 		),
 		goldmark.WithExtensions(&toc.Extender{}),
+		goldmark.WithExtensions(extension.Linkify),
+		goldmark.WithExtensions(extension.Strikethrough),
+		goldmark.WithExtensions(extension.Table),
 	)
 
 	r := text.NewReader(source)

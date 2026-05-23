@@ -23,8 +23,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	root := md.Parser().Parse(text.NewReader(b.Bytes()))
-	walk(root, "")
+	source := b.Bytes()
+	root := md.Parser().Parse(text.NewReader(source))
+	walk(source, root, "")
 	return nil
 }
 
@@ -35,12 +36,12 @@ func main() {
 	}
 }
 
-func walk(node ast.Node, indent string) {
+func walk(source []byte, node ast.Node, indent string) {
 	fmt.Println(indent, node.Kind())
 	if node.HasChildren() {
 		child := node.FirstChild()
 		for range node.ChildCount() {
-			walk(child, indent+"+")
+			walk(source, child, indent+"+")
 			child = child.NextSibling()
 		}
 	}

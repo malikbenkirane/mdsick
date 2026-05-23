@@ -44,6 +44,7 @@ func (m *Mermaid) render(code []byte, prepare change) {
 	ln.Destination = bytes.Join([][]byte{[]byte("data:image/svg+xml;base64"), svg64.Bytes()},
 		[]byte{','})
 	prepare.newChild = ast.NewImage(ln)
+	prepare.newChild.SetAttributeString("style", "max-height: 500px; width: auto;")
 	m.change <- prepare
 }
 

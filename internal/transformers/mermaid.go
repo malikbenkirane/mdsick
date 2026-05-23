@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/malikbenkirane/mdsick/internal/mermaid"
+	"github.com/schollz/progressbar/v3"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
@@ -16,6 +17,8 @@ import (
 type Mermaid struct {
 	err    chan error
 	change chan change
+	ready  chan struct{}
+	bar    *progressbar.ProgressBar
 }
 
 type change struct {
@@ -49,15 +52,20 @@ func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Con
 	var wg sync.WaitGroup
 
 	var changes []change
-	var count, left int
 	var mu sync.Mutex
 
 	m.change = make(chan change, 1)
 	m.err = make(chan error, 1)
+	m.ready = make(chan struct{})
 	defer close(m.change)
 	defer close(m.err)
+	defer close(m.ready)
 
 	go func() {
+		_, ok := <-m.ready
+		if !ok {
+			return
+		}
 		for {
 			select {
 			case err, ok := <-m.err:
@@ -71,12 +79,13 @@ func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Con
 				}
 				mu.Lock()
 				changes = append(changes, change)
-				left--
+				_ = m.bar.Add(1)
 				mu.Unlock()
-				fmt.Fprintln(os.Stderr, "mermaid:", left, "/", count)
 			}
 		}
 	}()
+
+	var count int
 
 	err := ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -94,16 +103,16 @@ func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Con
 						oldChild: n,
 					})
 			})
-			mu.Lock()
 			count++
-			left++
-			mu.Unlock()
 		}
 		return ast.WalkContinue, nil
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
+
+	m.bar = progressbar.New(count)
+	m.ready <- struct{}{}
 
 	wg.Wait()
 

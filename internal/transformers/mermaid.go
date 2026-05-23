@@ -2,7 +2,9 @@ package transformers
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"sync"
@@ -27,22 +29,51 @@ type change struct {
 	parent   ast.Node
 }
 
+func randHex(n int) (string, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
 func (m *Mermaid) render(code []byte, prepare change) {
 	var svg bytes.Buffer
 	if err := mermaid.Compile(bytes.NewBuffer(code), &svg); err != nil {
 		m.err <- err
+		return
 	}
+
+	name, err := randHex(32)
+	if err != nil {
+		m.err <- err
+		return
+	}
+
+	f, err := os.Create(name + ".svg")
+	if err != nil {
+		m.err <- err
+		return
+	}
+
+	_, err = f.Write(svg.Bytes())
+	if err != nil {
+		m.err <- err
+		return
+	}
+
 	var svg64 bytes.Buffer
 	{
 		enc := base64.NewEncoder(base64.StdEncoding, &svg64)
 		_, err := enc.Write(svg.Bytes())
 		if err != nil {
 			m.err <- err
+			return
 		}
 	}
 	ln := ast.NewLink()
-	ln.Destination = bytes.Join([][]byte{[]byte("data:image/svg+xml;base64"), svg64.Bytes()},
-		[]byte{','})
+	ln.Destination = []byte(f.Name())
 	prepare.newChild = ast.NewImage(ln)
 	prepare.newChild.SetAttributeString("style", "max-height: 500px; width: auto;")
 	m.change <- prepare

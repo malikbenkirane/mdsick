@@ -38,17 +38,19 @@ func run() error {
 		goldmark.WithExtensions(extension.Table),
 	)
 
-	r := text.NewReader(source)
-	doc := md.Parser().Parse(r)
-
 	tmp, err := os.MkdirTemp("", "")
 	if err != nil {
 		return err
 	}
 
+	fmt.Fprintln(os.Stderr, tmp)
+
 	if err := os.Chdir(tmp); err != nil {
 		return err
 	}
+
+	r := text.NewReader(source)
+	doc := md.Parser().Parse(r)
 
 	f, err := os.Create("rendered.html")
 	if err != nil {

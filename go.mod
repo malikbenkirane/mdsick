@@ -5,6 +5,7 @@ go 1.26.2
 require (
 	github.com/schollz/progressbar/v3 v3.19.0
 	github.com/yuin/goldmark v1.8.2
+	go.abhg.dev/goldmark/toc v0.12.0
 )
 
 require (

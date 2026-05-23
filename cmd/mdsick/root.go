@@ -13,6 +13,7 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
+	"go.abhg.dev/goldmark/toc"
 )
 
 func run() error {
@@ -28,7 +29,9 @@ func run() error {
 			parser.WithASTTransformers(util.PrioritizedValue{
 				Value: &transformers.Mermaid{},
 			}),
+			parser.WithAutoHeadingID(),
 		),
+		goldmark.WithExtensions(&toc.Extender{}),
 	)
 
 	r := text.NewReader(source)

@@ -152,11 +152,12 @@ func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Con
 		return
 	}
 
-	m.bar = progressbar.New(count)
-	m.bar.Describe("mermaiding...")
-	m.ready <- struct{}{}
-
-	wg.Wait()
+	if count > 0 {
+		m.bar = progressbar.New(count)
+		m.bar.Describe("mermaiding...")
+		m.ready <- struct{}{}
+		wg.Wait()
+	}
 
 	for _, change := range changes {
 		change.parent.ReplaceChild(change.parent, change.oldChild, change.newChild)

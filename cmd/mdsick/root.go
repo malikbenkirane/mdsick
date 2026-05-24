@@ -2,14 +2,17 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/malikbenkirane/mdsick/internal/transformers"
+	"github.com/malikbenkirane/mdsick/style"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -89,7 +92,7 @@ func render(to string, md goldmark.Markdown, source []byte, doc ast.Node) (err e
 			}
 		</style>
 	</head>
-	<body class="markdown-body">`, style, paddingHorizontal, paddingVertical))
+	<body class="markdown-body">`, styleRef, paddingHorizontal, paddingVertical))
 	if err != nil {
 		return err
 	}
@@ -114,13 +117,13 @@ func render(to string, md goldmark.Markdown, source []byte, doc ast.Node) (err e
 }
 
 const (
-	style             = "github-markdown.css"
+	styleRef          = "github-markdown.css"
 	paddingVertical   = "6.47rem"
 	paddingHorizontal = "4rem"
 )
 
 func copyStyle(to string) (err error) {
-	dst, err := os.Create(filepath.Join(to, style))
+	dst, err := os.Create(filepath.Join(to, styleRef))
 	if err != nil {
 		return err
 	}
@@ -128,13 +131,7 @@ func copyStyle(to string) (err error) {
 		err = errors.Join(err, dst.Close())
 	}()
 
-	src, err := os.Open(style)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = errors.Join(err, src.Close())
-	}()
+	src := strings.NewReader(style.Github)
 
 	if _, err = io.Copy(dst, src); err != nil {
 		return err

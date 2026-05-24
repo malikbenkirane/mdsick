@@ -118,8 +118,8 @@ func render(to string, md goldmark.Markdown, source []byte, doc ast.Node) (err e
 
 const (
 	styleRef          = "github-markdown.css"
-	paddingVertical   = "6.47rem"
-	paddingHorizontal = "4rem"
+	paddingHorizontal = "6.47rem"
+	paddingVertical   = "4rem"
 )
 
 func copyStyle(to string) (err error) {

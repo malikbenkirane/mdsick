@@ -17,10 +17,14 @@ import (
 )
 
 type Mermaid struct {
-	err    chan error
-	change chan change
-	ready  chan struct{}
-	bar    *progressbar.ProgressBar
+	event chan event
+	ready chan struct{}
+	bar   *progressbar.ProgressBar
+}
+
+type event struct {
+	change *change
+	err    error
 }
 
 type change struct {
@@ -41,25 +45,25 @@ func randHex(n int) (string, error) {
 func (m *Mermaid) render(code []byte, prepare change) {
 	var svg bytes.Buffer
 	if err := mermaid.Compile(bytes.NewBuffer(code), &svg); err != nil {
-		m.err <- err
+		m.event <- event{err: err}
 		return
 	}
 
 	name, err := randHex(32)
 	if err != nil {
-		m.err <- err
+		m.event <- event{err: err}
 		return
 	}
 
 	f, err := os.Create(name + ".svg")
 	if err != nil {
-		m.err <- err
+		m.event <- event{err: err}
 		return
 	}
 
 	_, err = f.Write(svg.Bytes())
 	if err != nil {
-		m.err <- err
+		m.event <- event{err: err}
 		return
 	}
 
@@ -68,7 +72,7 @@ func (m *Mermaid) render(code []byte, prepare change) {
 		enc := base64.NewEncoder(base64.StdEncoding, &svg64)
 		_, err := enc.Write(svg.Bytes())
 		if err != nil {
-			m.err <- err
+			m.event <- event{err: err}
 			return
 		}
 	}
@@ -76,48 +80,52 @@ func (m *Mermaid) render(code []byte, prepare change) {
 	ln.Destination = []byte(f.Name())
 	prepare.newChild = ast.NewImage(ln)
 	prepare.newChild.SetAttributeString("style", "max-height: 500px; width: auto;")
-	m.change <- prepare
+	m.event <- event{change: &prepare}
 }
 
 func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
 
 	var wg sync.WaitGroup
 
-	var changes []change
+	var changes []*change
 	var mu sync.Mutex
 
-	m.change = make(chan change, 1)
-	m.err = make(chan error, 1)
+	m.event = make(chan event, 1)
 	m.ready = make(chan struct{})
-	defer close(m.change)
-	defer close(m.err)
+	defer close(m.event)
 	defer close(m.ready)
 
-	go func() {
+	var count, done int
+
+	wg.Go(func() {
 		_, ok := <-m.ready
 		if !ok {
 			return
 		}
 		for {
-			select {
-			case err, ok := <-m.err:
-				if !ok {
-					return
-				}
-				fmt.Fprintln(os.Stderr, err)
-			case change, ok := <-m.change:
-				if !ok {
-					return
-				}
-				mu.Lock()
-				changes = append(changes, change)
-				_ = m.bar.Add(1)
-				mu.Unlock()
+			event, ok := <-m.event
+			if !ok {
+				fmt.Fprintln(os.Stderr, "mermaid event chan closed")
+				return
 			}
-		}
-	}()
 
-	var count int
+			if event.err != nil {
+				fmt.Fprintln(os.Stderr, event.err)
+				continue
+			}
+
+			mu.Lock()
+			changes = append(changes, event.change)
+			_ = m.bar.Add(1)
+			done++
+			if done == count {
+				mu.Unlock()
+				m.bar.Describe("mermaiding done")
+				return
+			}
+			mu.Unlock()
+		}
+	})
 
 	err := ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -141,9 +149,11 @@ func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Con
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		return
 	}
 
 	m.bar = progressbar.New(count)
+	m.bar.Describe("mermaiding...")
 	m.ready <- struct{}{}
 
 	wg.Wait()

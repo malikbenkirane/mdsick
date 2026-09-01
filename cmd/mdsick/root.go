@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -63,14 +64,17 @@ func run() error {
 
 	const dst = "rendered.html"
 
-	if err := render(dst, md, source, doc); err != nil {
+	title := flag.String("title", "rendered.html", "document title")
+	flag.Parse()
+
+	if err := render(dst, *title, md, source, doc); err != nil {
 		return err
 	}
 
 	return exec.Command("open", filepath.Join(tmp, dst)).Run()
 }
 
-func render(to string, md goldmark.Markdown, source []byte, doc ast.Node) (err error) {
+func render(to, title string, md goldmark.Markdown, source []byte, doc ast.Node) (err error) {
 	f, err := os.Create(to)
 	if err != nil {
 		return err
@@ -82,6 +86,7 @@ func render(to string, md goldmark.Markdown, source []byte, doc ast.Node) (err e
 	_, err = f.WriteString(fmt.Sprintf(`<!doctype html>
 <html>
 	<head>
+		<title>%[4]s</title>
 		<link rel="stylesheet" href="%[1]s">
 		<style>
 			body {
@@ -92,7 +97,7 @@ func render(to string, md goldmark.Markdown, source []byte, doc ast.Node) (err e
 			}
 		</style>
 	</head>
-	<body class="markdown-body">`, styleRef, paddingHorizontal, paddingVertical))
+	<body class="markdown-body">`, styleRef, paddingHorizontal, paddingVertical, title))
 	if err != nil {
 		return err
 	}

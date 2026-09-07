@@ -17,7 +17,7 @@
 - `internal/transformers/mermaid.go` — goldmark AST transformer. Concurrent: spawns one goroutine per mermaid block, communicates completions through the `event` channel, collects `change` structs, and replaces fenced blocks with `ast.NewImage` links only *after* the walk completes. Mutation is deferred because mutating the AST mid-walk is unsafe.
 - `internal/mermaid/compile.go` — thin wrapper invoking `mmdc -i - -o -` (mermaid-cli must be installed separately).
 - `style/` — `github-markdown.css` embedded via `go:embed` into `style.Github`; HTML shell (padding, stylesheet link) is hard-coded in `render()`.
-- `toc/` — custom heading-ID slugger (`toc.Id`) plus golden-file tests. `toc.md` doubles as a test fixture describing exact slug behavior (spaces and dashes each become one `-`, `@() `*are* stripped while punctuation like `< >` collapses to `-`).
+- `toc/` — superseded experiment, **not imported anywhere**. TOCs are handled by the community extension `go.abhg.dev/goldmark/toc` in `root.go`. This dir contains a custom heading-ID slugger (`toc.Id`) with tests and a fixture (`toc.md`) describing exact slug behavior (spaces and dashes each become one `-`, `@() `*are* stripped while punctuation like `< >` collapses to `-`). Don't wire it back in; treat `go.abhg.dev/goldmark/toc` as the TOC implementation.
 - `docs/issues/` — task specs; issues are numbered markdown files.
 
 ## Gotchas

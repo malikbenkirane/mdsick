@@ -44,20 +44,23 @@ If stdin is a terminal (no pipe or redirection), mdsick does not block waiting
 for input: it renders every `*.md` file in the current directory instead. Like
 stdin mode, all output goes to a fresh temp directory (path printed to stderr) —
 one `<doc>.html` per file plus an `index.html` listing them all, which is then
-opened in your browser. The current directory is left untouched.
+opened in your browser. The current directory is left untouched. Files are
+listed in natural order (`2.md` before `10.md`), and a file that starts with a
+`# Heading 1` shows that title next to its name in the index.
 
 ```sh
 mdsick
 ```
 
-### Flags
+### Arguments
 
-| Flag | Description |
-|------|-------------|
-| `-title` | Document title (default `rendered.html`) |
+Positional arguments set the title of the generated HTML page. In stdin mode
+they title `rendered.html` (default `rendered.html`); in directory mode they
+title `index.html` (default `Index`).
 
 ```sh
-cat notes.md | mdsick -title "My Notes"
+cat notes.md | mdsick "My Notes"
+mdsick "My Notes"
 ```
 
 ## Behavior

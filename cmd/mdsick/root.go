@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	_ "embed"
 	"errors"
 	"flag"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/malikbenkirane/mdsick/internal/transformers"
@@ -73,6 +75,11 @@ func stdinIsTerminal() bool {
 
 func runDir() error {
 	flag.Parse()
+	args := flag.Args()
+	title := "Index"
+	if len(args) > 0 {
+		title = strings.Join(args, " ")
+	}
 
 	files, err := filepath.Glob("*.md")
 	if err != nil {
@@ -82,6 +89,8 @@ func runDir() error {
 		fmt.Fprintln(os.Stderr, "mdsick: no markdown files in current directory")
 		return nil
 	}
+
+	slices.SortStableFunc(files, naturalCompare)
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -93,7 +102,7 @@ func runDir() error {
 		return err
 	}
 
-	var rendered []string
+	var rendered []indexedFile
 	for _, file := range files {
 		source, err := os.ReadFile(filepath.Join(wd, file))
 		if err != nil {
@@ -111,18 +120,95 @@ func runDir() error {
 			continue
 		}
 
-		rendered = append(rendered, file)
+		rendered = append(rendered, indexedFile{name: file, title: docTitle(source)})
 	}
 
 	if len(rendered) == 0 {
 		return nil
 	}
 
-	if err := writeIndex(rendered); err != nil {
+	if err := writeIndex(title, rendered); err != nil {
 		return err
 	}
 
 	return exec.Command("open", filepath.Join(tmp, "index.html")).Run()
+}
+
+type indexedFile struct {
+	name  string
+	title string
+}
+
+var titleMarkdown = goldmark.New()
+
+func docTitle(source []byte) string {
+	doc := titleMarkdown.Parser().Parse(text.NewReader(source))
+	heading, ok := doc.FirstChild().(*ast.Heading)
+	if !ok || heading.Level != 1 {
+		return ""
+	}
+
+	var title bytes.Buffer
+	if err := ast.Walk(heading, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering && n.Kind() == ast.KindText {
+			title.Write(n.(*ast.Text).Value(source))
+		}
+		return ast.WalkContinue, nil
+	}); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return ""
+	}
+
+	resolved := util.ResolveNumericReferences(title.Bytes())
+	resolved = util.ResolveEntityNames(resolved)
+	resolved = util.UnescapePunctuations(resolved)
+	return strings.TrimSpace(string(resolved))
+}
+
+func naturalCompare(a, b string) int {
+	for len(a) > 0 && len(b) > 0 {
+		if isDigit(a[0]) && isDigit(b[0]) {
+			var an, bn string
+			an, a = leadingDigits(a)
+			bn, b = leadingDigits(b)
+			if c := compareNumbers(an, bn); c != 0 {
+				return c
+			}
+			continue
+		}
+		if c := cmp.Compare(a[0], b[0]); c != 0 {
+			return c
+		}
+		a, b = a[1:], b[1:]
+	}
+	switch {
+	case len(a) > 0:
+		return 1
+	case len(b) > 0:
+		return -1
+	}
+	return 0
+}
+
+func isDigit(c byte) bool {
+	return '0' <= c && c <= '9'
+}
+
+func leadingDigits(s string) (digits, rest string) {
+	i := 0
+	for i < len(s) && isDigit(s[i]) {
+		i++
+	}
+	return s[:i], s[i:]
+}
+
+func compareNumbers(a, b string) int {
+	a = strings.TrimLeft(a, "0")
+	b = strings.TrimLeft(b, "0")
+	if c := cmp.Compare(len(a), len(b)); c != 0 {
+		return c
+	}
+	return strings.Compare(a, b)
 }
 
 func tempWorkspace() (string, error) {
@@ -206,7 +292,7 @@ func render(to, title string, md goldmark.Markdown, source []byte, doc ast.Node)
 	return nil
 }
 
-func writeIndex(files []string) (err error) {
+func writeIndex(title string, files []indexedFile) (err error) {
 	f, err := os.Create("index.html")
 	if err != nil {
 		return err
@@ -218,7 +304,7 @@ func writeIndex(files []string) (err error) {
 	_, err = fmt.Fprintf(f, `<!doctype html>
 <html>
 	<head>
-		<title>Index</title>
+		<title>%[4]s</title>
 		<link rel="stylesheet" href="%[1]s">
 		<style>
 			body {
@@ -227,19 +313,34 @@ func writeIndex(files []string) (err error) {
 				padding-top: %[3]s;
 				padding-bottom: %[3]s;
 			}
+			.file-title {
+				color: #656d76;
+				font-weight: normal;
+				margin-left: 0.5rem;
+			}
 		</style>
 	</head>
 	<body class="markdown-body">
-		<h1>Index</h1>
+		<h1>%[4]s</h1>
 		<ul>
-`, styleRef, paddingHorizontal, paddingVertical)
+`, styleRef, paddingHorizontal, paddingVertical, html.EscapeString(title))
 	if err != nil {
 		return err
 	}
 
 	for _, file := range files {
-		href := strings.TrimSuffix(file, filepath.Ext(file)) + ".html"
-		_, err = fmt.Fprintf(f, "\t\t\t<li><a href=\"%s\">%s</a></li>\n", url.PathEscape(href), html.EscapeString(file))
+		href := strings.TrimSuffix(file.name, filepath.Ext(file.name)) + ".html"
+		_, err = fmt.Fprintf(f, "\t\t\t<li><a href=\"%s\">%s</a>", url.PathEscape(href), html.EscapeString(file.name))
+		if err != nil {
+			return err
+		}
+		if file.title != "" {
+			_, err = fmt.Fprintf(f, " <span class=\"file-title\">%s</span>", html.EscapeString(file.title))
+			if err != nil {
+				return err
+			}
+		}
+		_, err = f.WriteString("</li>\n")
 		if err != nil {
 			return err
 		}

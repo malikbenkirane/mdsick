@@ -64,10 +64,14 @@ func run() error {
 
 	const dst = "rendered.html"
 
-	title := flag.String("title", "rendered.html", "document title")
 	flag.Parse()
+	args := flag.Args()
+	title := dst
+	if len(args) > 0 {
+		title = strings.Join(args, " ")
+	}
 
-	if err := render(dst, *title, md, source, doc); err != nil {
+	if err := render(dst, title, md, source, doc); err != nil {
 		return err
 	}
 

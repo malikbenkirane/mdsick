@@ -38,6 +38,18 @@ The rendered HTML is written to a temp directory (path is printed to stderr) and
 opened in your browser. Mermaid blocks render with a progress bar; SVGs inline
 as images capped at 500px height.
 
+### Directory mode
+
+If stdin is a terminal (no pipe or redirection), mdsick does not block waiting
+for input: it renders every `*.md` file in the current directory instead. Like
+stdin mode, all output goes to a fresh temp directory (path printed to stderr) —
+one `<doc>.html` per file plus an `index.html` listing them all, which is then
+opened in your browser. The current directory is left untouched.
+
+```sh
+mdsick
+```
+
 ### Flags
 
 | Flag | Description |

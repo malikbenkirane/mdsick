@@ -27,7 +27,7 @@ func TestWriteIssuesIndex(t *testing.T) {
 		{Number: 3, Base: "3.md", Side: "open"},
 	}
 	closed := []issues.Row{{Number: 10, Base: "10.md", Side: "closed", Head: "Archived"}}
-	warns := []issues.Warning{{Source: "3.md", Ref: "#44"}}
+	warns := []issues.Warning{{Source: "3.md", Ref: "#44"}, {Source: "3.md", Ref: "#44"}}
 
 	if err := writeIssuesIndex("Repo & Issues", open, closed, warns); err != nil {
 		t.Fatal(err)
@@ -45,11 +45,18 @@ func TestWriteIssuesIndex(t *testing.T) {
 		"Open Issues", "Closed Issues",
 		`<a href="21.html">21.md</a> <span class="file-title">First</span>`,
 		`<a href="10.html">10.md</a> <span class="file-title">Archived</span>`,
-		"<h2>Warnings</h2>", "3.md: #44",
+		"<h2>Warnings</h2>",
+		`<a href="3.html">#3</a>`, `<code>#44</code>`,
 	} {
 		if !strings.Contains(h, want) {
 			t.Fatalf("missing %q in:\n%s", want, h)
 		}
+	}
+	if strings.Contains(h, "<pre>") {
+		t.Fatalf("stale <pre> warning block:\n%s", h)
+	}
+	if n := strings.Count(h, "<code>#44</code>"); n != 1 {
+		t.Fatalf("expected one folded warning row, got %d:\n%s", n, h)
 	}
 }
 

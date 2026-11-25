@@ -98,8 +98,8 @@ func TestBuild(t *testing.T) {
 
 	idx := mustRead(filepath.Join(tmp, "index.html"))
 	hrefs := collectHrefs(t, idx)
-	if len(hrefs) != 4 {
-		t.Fatalf("expected 4 anchors (21, 3, 10 and open issue 43), got %v", hrefs)
+	if len(hrefs) != 5 {
+		t.Fatalf("expected 5 anchors (21, 3, 10, open issue 43 and the warnings row #43), got %v", hrefs)
 	}
 	for _, g := range []string{"21.html", "3.html", "10.html", "43.html"} {
 		found := false
@@ -143,7 +143,7 @@ func TestBuildWarningsSurfaceOnIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := string(body)
-	if !strings.Contains(h, "43.md: #99") {
+	if !strings.Contains(h, "<code>#99</code>") || !strings.Contains(h, `<a href="43.html">#43</a>`) {
 		t.Fatalf("unresolvable warning missing from index:\n%s", h)
 	}
 	if !strings.Contains(h, "No closed issues") {

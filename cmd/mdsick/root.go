@@ -22,6 +22,7 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 	"go.abhg.dev/goldmark/toc"
@@ -232,6 +233,11 @@ func tempWorkspace() (string, error) {
 
 func newMarkdown() goldmark.Markdown {
 	return goldmark.New(
+		goldmark.WithRendererOptions(
+			renderer.WithNodeRenderers(util.PrioritizedValue{
+				Value: transformers.CodeLiteralRenderer{},
+			}),
+		),
 		goldmark.WithParserOptions(
 			parser.WithASTTransformers(util.PrioritizedValue{
 				Value: &transformers.Mermaid{},

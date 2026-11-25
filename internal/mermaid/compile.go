@@ -1,6 +1,7 @@
 package mermaid
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,15 @@ import (
 
 //go:embed mmdc-config.json
 var config []byte
+
+type Failure struct {
+	Err    error
+	Output []byte
+}
+
+func (f *Failure) Error() string { return f.Err.Error() }
+
+func (f *Failure) Unwrap() error { return f.Err }
 
 func tempConfig() (path string, err error) {
 
@@ -48,14 +58,20 @@ func Compile(src io.Reader, dst io.Writer) (err error) {
 		"-b", "#ffffff",
 	}
 
+	var out bytes.Buffer
 	cmd := exec.Command("mmdc", append(args, "-i", "-", "-o", "-")...)
 	cmd.Stdin = src
-	cmd.Stdout = dst
+	cmd.Stdout = &out
+	cmd.Stderr = &out
 
 	if err := cmd.Run(); err != nil {
-		return err
+		return &Failure{
+			Err:    err,
+			Output: out.Bytes(),
+		}
 	}
 
-	return nil
+	_, err = dst.Write(out.Bytes())
+	return err
 
 }

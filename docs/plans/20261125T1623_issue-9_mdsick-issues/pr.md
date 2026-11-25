@@ -72,8 +72,10 @@ all resolve to `8.html`/`21.html` respectively by number alone:
 
 Fenced code blocks are skipped entirely. Unresolvable references are *not*
 dropped: they append `issues.Warning{Source, Ref}` — the index's
-`<h2>Warnings</h2>` block is a two-column table (File | Ref), one
-deduplicated row per broken reference sorted by file (natural) then ref:
+`<h2>Warnings</h2>` block is a two-column table (File | Ref), one row
+per source file with broken references, the Ref cell holding one
+`<code>` element per distinct broken reference (folded across mentions
+and spellings, numeric refs displayed canonically as `#N`):
 the File cell links the flat page (`<a href="9.html">#9</a>`) and the Ref
 cell is `<code>`-wrapped text (e.g. `<code>#44</code>`) so broken refs
 surface to humans instead of stderr.

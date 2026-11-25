@@ -40,6 +40,10 @@ func run() error {
 	}
 	source := b.Bytes()
 
+	if err := checkMmdc(source); err != nil {
+		return err
+	}
+
 	md := newMarkdown()
 
 	tmp, err := tempWorkspace()
@@ -89,6 +93,10 @@ func runDir() error {
 	if len(files) == 0 {
 		fmt.Fprintln(os.Stderr, "mdsick: no markdown files in current directory")
 		return nil
+	}
+
+	if err := checkMmdcBatch(); err != nil {
+		return err
 	}
 
 	slices.SortStableFunc(files, naturalCompare)
@@ -229,6 +237,27 @@ func tempWorkspace() (string, error) {
 	}
 
 	return tmp, nil
+}
+
+func hasMermaid(source []byte) bool {
+	return strings.Contains(string(source), "```mermaid")
+}
+
+func checkMmdc(source []byte) error {
+	if !hasMermaid(source) {
+		return nil
+	}
+	if _, err := exec.LookPath("mmdc"); err != nil {
+		return fmt.Errorf("mdsick: mmdc not found on PATH; mermaid blocks require it")
+	}
+	return nil
+}
+
+func checkMmdcBatch() error {
+	if _, err := exec.LookPath("mmdc"); err != nil {
+		return fmt.Errorf("mdsick: mmdc not found on PATH; directory markdown may contain mermaid blocks that require it")
+	}
+	return nil
 }
 
 func newMarkdown() goldmark.Markdown {

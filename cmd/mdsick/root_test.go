@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/malikbenkirane/mdsick/internal/markdown"
 )
 
 func TestHasMermaid(t *testing.T) {
@@ -74,7 +76,7 @@ func TestDocTitle(t *testing.T) {
 		{name: "empty", doc: "", want: ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if got := docTitle([]byte(test.doc)); got != test.want {
+			if got := markdown.DocTitle([]byte(test.doc)); got != test.want {
 				t.Fatalf("unexpected title:\ngot %q\nexp %q", got, test.want)
 			}
 		})

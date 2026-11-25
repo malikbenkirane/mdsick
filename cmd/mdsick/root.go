@@ -17,10 +17,7 @@ import (
 	"github.com/malikbenkirane/mdsick/internal/markdown"
 	"github.com/malikbenkirane/mdsick/internal/natural"
 	"github.com/malikbenkirane/mdsick/internal/workspace"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
-	"github.com/yuin/goldmark/util"
 )
 
 func run() error {
@@ -124,7 +121,7 @@ func runDir() error {
 			continue
 		}
 
-		rendered = append(rendered, indexedFile{name: file, title: docTitle(source)})
+		rendered = append(rendered, indexedFile{name: file, title: markdown.DocTitle(source)})
 	}
 
 	if len(rendered) == 0 {
@@ -141,32 +138,6 @@ func runDir() error {
 type indexedFile struct {
 	name  string
 	title string
-}
-
-var titleMarkdown = goldmark.New()
-
-func docTitle(source []byte) string {
-	doc := titleMarkdown.Parser().Parse(text.NewReader(source))
-	heading, ok := doc.FirstChild().(*ast.Heading)
-	if !ok || heading.Level != 1 {
-		return ""
-	}
-
-	var title bytes.Buffer
-	if err := ast.Walk(heading, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if entering && n.Kind() == ast.KindText {
-			title.Write(n.(*ast.Text).Value(source))
-		}
-		return ast.WalkContinue, nil
-	}); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return ""
-	}
-
-	resolved := util.ResolveNumericReferences(title.Bytes())
-	resolved = util.ResolveEntityNames(resolved)
-	resolved = util.UnescapePunctuations(resolved)
-	return strings.TrimSpace(string(resolved))
 }
 
 func hasMermaid(source []byte) bool {

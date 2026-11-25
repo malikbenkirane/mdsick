@@ -81,16 +81,24 @@ func issueNumberOf(source string) (n int, ok bool) {
 	return n, true
 }
 
-func writeWarningsTable(f *os.File, rows []issues.Warning) (err error) {
+func writeWarningsTable(f *os.File, rows []fileWarnings) (err error) {
 	if _, err = fmt.Fprint(f, "\t\t<h2>Warnings</h2>\n\t\t<table>\n\t\t\t<thead>\n\t\t\t\t<tr><th>File</th><th>Ref</th></tr>\n\t\t\t</thead>\n\t\t\t<tbody>\n"); err != nil {
 		return err
 	}
-	for _, w := range rows {
-		cell := fmt.Sprintf(`<td>%s</td>`, html.EscapeString(w.Source))
-		if n, ok := issueNumberOf(w.Source); ok {
+	for _, row := range rows {
+		cell := fmt.Sprintf(`<td>%s</td>`, html.EscapeString(row.Source))
+		if n, ok := issueNumberOf(row.Source); ok {
 			cell = fmt.Sprintf(`<td><a href="%d.html">#%d</a></td>`, n, n)
 		}
-		if _, err = fmt.Fprintf(f, "\t\t\t\t<tr>%s<td><code>%s</code></td></tr>\n", cell, html.EscapeString(w.Ref)); err != nil {
+		if _, err = fmt.Fprint(f, "\t\t\t\t<tr>"+cell+"<td>\n"); err != nil {
+			return err
+		}
+		for _, ref := range row.Refs {
+			if _, err = fmt.Fprintf(f, "\t\t\t\t\t<code>%s</code>\n", html.EscapeString(ref)); err != nil {
+				return err
+			}
+		}
+		if _, err = fmt.Fprint(f, "\t\t\t\t</td></tr>\n"); err != nil {
 			return err
 		}
 	}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,17 +14,13 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/malikbenkirane/mdsick/internal/markdown"
 	"github.com/malikbenkirane/mdsick/internal/natural"
-	"github.com/malikbenkirane/mdsick/internal/transformers"
-	"github.com/malikbenkirane/mdsick/style"
+	"github.com/malikbenkirane/mdsick/internal/workspace"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
-	"go.abhg.dev/goldmark/toc"
 )
 
 func run() error {
@@ -44,9 +39,9 @@ func run() error {
 		return err
 	}
 
-	md := newMarkdown()
+	md := markdown.New()
 
-	tmp, err := tempWorkspace()
+	tmp, err := workspace.TempWorkspace()
 	if err != nil {
 		return err
 	}
@@ -63,7 +58,7 @@ func run() error {
 		title = strings.Join(args, " ")
 	}
 
-	if err := render(dst, title, md, source, doc); err != nil {
+	if err := workspace.RenderFile(dst, title, md, source, doc); err != nil {
 		return err
 	}
 
@@ -106,7 +101,7 @@ func runDir() error {
 		return err
 	}
 
-	tmp, err := tempWorkspace()
+	tmp, err := workspace.TempWorkspace()
 	if err != nil {
 		return err
 	}
@@ -121,10 +116,10 @@ func runDir() error {
 
 		base := strings.TrimSuffix(file, filepath.Ext(file))
 
-		md := newMarkdown()
+		md := markdown.New()
 		doc := md.Parser().Parse(text.NewReader(source))
 
-		if err := render(base+".html", base, md, source, doc); err != nil {
+		if err := workspace.RenderFile(base+".html", base, md, source, doc); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
@@ -174,25 +169,6 @@ func docTitle(source []byte) string {
 	return strings.TrimSpace(string(resolved))
 }
 
-func tempWorkspace() (string, error) {
-	tmp, err := os.MkdirTemp("", "")
-	if err != nil {
-		return "", err
-	}
-
-	fmt.Fprintln(os.Stderr, tmp)
-
-	if err := copyStyle(tmp); err != nil {
-		return "", err
-	}
-
-	if err := os.Chdir(tmp); err != nil {
-		return "", err
-	}
-
-	return tmp, nil
-}
-
 func hasMermaid(source []byte) bool {
 	return strings.Contains(string(source), "```mermaid")
 }
@@ -211,73 +187,6 @@ func checkMmdcBatch() error {
 	if _, err := exec.LookPath("mmdc"); err != nil {
 		return fmt.Errorf("mdsick: mmdc not found on PATH; directory markdown may contain mermaid blocks that require it")
 	}
-	return nil
-}
-
-func newMarkdown() goldmark.Markdown {
-	return goldmark.New(
-		goldmark.WithRendererOptions(
-			renderer.WithNodeRenderers(util.PrioritizedValue{
-				Value: transformers.CodeLiteralRenderer{},
-			}),
-		),
-		goldmark.WithParserOptions(
-			parser.WithASTTransformers(util.PrioritizedValue{
-				Value: &transformers.Mermaid{},
-			}),
-			parser.WithAutoHeadingID(),
-		),
-		goldmark.WithExtensions(&toc.Extender{}),
-		goldmark.WithExtensions(extension.Linkify),
-		goldmark.WithExtensions(extension.Strikethrough),
-		goldmark.WithExtensions(extension.Table),
-	)
-}
-
-func render(to, title string, md goldmark.Markdown, source []byte, doc ast.Node) (err error) {
-	f, err := os.Create(to)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = errors.Join(err, f.Close())
-	}()
-
-	_, err = f.WriteString(fmt.Sprintf(`<!doctype html>
-<html>
-	<head>
-		<title>%[4]s</title>
-		<link rel="stylesheet" href="%[1]s">
-		<style>
-			body {
-				padding-left: %[2]s;
-				padding-right: %[2]s;
-				padding-top: %[3]s;
-				padding-bottom: %[3]s;
-			}
-		</style>
-	</head>
-	<body class="markdown-body">`, styleRef, paddingHorizontal, paddingVertical, title))
-	if err != nil {
-		return err
-	}
-
-	_, err = f.WriteString(`
-	</body>
-</html>`)
-	if err != nil {
-		return err
-	}
-
-	if err := md.Renderer().Render(f, source, doc); err != nil {
-		return err
-	}
-
-	_, err = f.WriteString("</body></html>")
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -312,7 +221,7 @@ func writeIndex(title string, files []indexedFile) (err error) {
 	<body class="markdown-body">
 		<h1>%[4]s</h1>
 		<ul>
-`, styleRef, paddingHorizontal, paddingVertical, html.EscapeString(title))
+`, workspace.StyleRef, workspace.PaddingHorizontal, workspace.PaddingVertical, html.EscapeString(title))
 	if err != nil {
 		return err
 	}
@@ -337,31 +246,7 @@ func writeIndex(title string, files []indexedFile) (err error) {
 
 	_, err = f.WriteString("\t\t</ul>\n\t</body>\n</html>")
 
-	return err
-}
-
-const (
-	styleRef          = "github-markdown.css"
-	paddingHorizontal = "6.47rem"
-	paddingVertical   = "4rem"
-)
-
-func copyStyle(to string) (err error) {
-	dst, err := os.Create(filepath.Join(to, styleRef))
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = errors.Join(err, dst.Close())
-	}()
-
-	src := strings.NewReader(style.Github)
-
-	if _, err = io.Copy(dst, src); err != nil {
-		return err
-	}
-
-	return nil
+return err
 }
 
 func main() {

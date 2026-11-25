@@ -35,7 +35,7 @@
 - Create: `cmd/mdsick-issues/warnings.go`
 - Test: `cmd/mdsick-issues/warnings_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 package main
@@ -97,12 +97,12 @@ renders files in reverse order; the fold is presentation-ordered
 `natural.Compare` ascending order and that refs within one file sort
 lexically (`#2` before `#21`).
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./cmd/mdsick-issues/ -run TestFoldWarnings -v`
 Expected: FAIL (`foldWarnings` undefined).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `cmd/mdsick-issues/warnings.go`:
 
@@ -144,12 +144,12 @@ func foldWarnings(warns []issues.Warning) []issues.Warning {
 `3.md` before `43.md`; falling back to it keeps one comparator, no
 separate `cmp.Reduce` ladder.)
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `go test ./cmd/mdsick-issues/`
 Expected: PASS (index tests unchanged so far).
 
-- [ ] **Step 5: Commit with caveman-commit**
+- [x] **Step 5: Commit with caveman-commit**
 
 Message: `feat: fold duplicate warnings`
 
@@ -161,7 +161,7 @@ Message: `feat: fold duplicate warnings`
 - Modify: `cmd/mdsick-issues/index.go` (replace the `<pre>` emission)
 - Test: `cmd/mdsick-issues/index_test.go` (updated assertions)
 
-- [ ] **Step 1: Update the tests to the new contract (failing first)**
+- [x] **Step 1: Update the tests to the new contract (failing first)**
 
 Replace the warnings assertions in `TestWriteIssuesIndex`:
 
@@ -181,7 +181,7 @@ Replace the warnings assertions in `TestWriteIssuesIndex`:
 Run: `go test ./cmd/mdsick-issues/`
 Expected: FAIL (writer still emits `<pre>`, anchors missing, no `#4` label).
 
-- [ ] **Step 2: Implement the table writer**
+- [x] **Step 2: Implement the table writer**
 
 In `cmd/mdsick-issues/index.go`, replace the warnings block with:
 
@@ -228,7 +228,7 @@ func writeWarningsTable(f *os.File, rows []issues.Warning) (err error) {
 
 (Add `"strconv"` to the import list.)
 
-- [ ] **Step 3: Delete `Warning.String()`**
+- [x] **Step 3: Delete `Warning.String()`**
 
 Remove `String()` from `internal/issues/resolver.go` and drop its test
 usage if any (check `grep -rn "\.String()" internal/issues cmd/mdsick-issues`
@@ -239,7 +239,7 @@ communicate it at render time.
 Run: `go build ./... && go test ./...`
 Expected: PASS.
 
-- [ ] **Step 4: Commit with caveman-commit**
+- [x] **Step 4: Commit with caveman-commit**
 
 Message: `feat: warnings table on index`
 
@@ -251,7 +251,7 @@ Message: `feat: warnings table on index`
 - Modify: `docs/issues/9.md`
 - Modify: `docs/plans/20261125T1623_issue-9_mdsick-issues/pr.md`
 
-- [ ] **Step 1: Rewrite the warnings bullet in `docs/issues/9.md`**
+- [x] **Step 1: Rewrite the warnings bullet in `docs/issues/9.md`**
 
 Current bullet:
 
@@ -279,7 +279,7 @@ page**" with "**the Warnings table at the bottom of the index page** (one
 deduplicated row per broken reference)" — same paragraph, it still says
 references "are not dropped", which remains true.
 
-- [ ] **Step 2: Refresh `pr.md`**
+- [x] **Step 2: Refresh `pr.md`**
 
 In `docs/plans/20261125T1623_issue-9_mdsick-issues/pr.md`:
 1. The "warnings block so broken refs surface" sentence in section 3:
@@ -291,7 +291,7 @@ In `docs/plans/20261125T1623_issue-9_mdsick-issues/pr.md`:
 3. The example string `9.md: #44 — unresolvable` in that doc: replace with
    the row form `<a href="9.html">#9</a>` + `<code>#44</code>`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 Message: `docs(issues): spec warnings as table`
 
@@ -301,13 +301,13 @@ Message: `docs(issues): spec warnings as table`
 
 **Files:** none
 
-- [ ] **Step 1: Full suite**
+- [x] **Step 1: Full suite**
 
 Run: `go test ./... && go vet ./... && golangci-lint run ./...`
 Expected: tests pass, vet clean, only the accepted QF1012 in
 `internal/workspace/workspace.go`.
 
-- [ ] **Step 2: Smoke against the real repo**
+- [x] **Step 2: Smoke against the real repo**
 
 Run: `go run ./cmd/mdsick-issues`
 Expected: Warnings table with two columns, no duplicate rows (`9.md`
@@ -315,7 +315,7 @@ mentions of `#8`, `#22`, … appear once each), File cells reading `#9`,
 `#14`, links pointing at `9.html`, `14.html`; ref cells like `#8`,
 `30`, `36` in `<code>`; no `<pre>` remnant.
 
-- [ ] **Step 3: Tick the plan checkboxes**
+- [x] **Step 3: Tick the plan checkboxes**
 
 Mark the run complete; record any smoke surprise in
 `docs/plans/20261125T<same>_issue-9_mdsick-issues/deviations.md` if the

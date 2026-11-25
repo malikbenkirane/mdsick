@@ -30,7 +30,3 @@ type Warning struct {
 	Source string // the issue file the reference came from, e.g. "43.md"
 	Ref    string // the raw unresolvable reference, e.g. "#44"
 }
-
-func (w Warning) String() string {
-	return fmt.Sprintf("%s: %s — unresolvable", w.Source, w.Ref)
-}

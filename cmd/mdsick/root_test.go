@@ -2,10 +2,63 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 )
+
+func TestHasMermaid(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		doc  string
+		want bool
+	}{
+		{name: "fence", doc: "x\n\n```mermaid\ngraph TD\n```\n", want: true},
+		{name: "tilde fence does not count", doc: "~~~mermaid\ngraph TD\n~~~\n", want: false},
+		{name: "no mermaid", doc: "# hi\n\nbody\n", want: false},
+		{name: "inline mention", doc: "use ```mermaid fences\n", want: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := hasMermaid([]byte(test.doc)); got != test.want {
+				t.Fatalf("hasMermaid:\ngot %v\nexp %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestGateBehaviors(t *testing.T) {
+	dir := t.TempDir()
+
+	t.Run("missing mmdc errors", func(t *testing.T) {
+		t.Setenv("PATH", dir)
+		err := checkMmdc([]byte("```mermaid\ngraph TD\n```\n"))
+		if err == nil {
+			t.Fatal("expected error with mmdc missing")
+		}
+		if !strings.Contains(err.Error(), "mmdc") {
+			t.Fatalf("error must mention mmdc:\n%v", err)
+		}
+	})
+
+	t.Run("shim present passes", func(t *testing.T) {
+		shim := filepath.Join(dir, "mmdc")
+		if err := os.WriteFile(shim, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("PATH", dir)
+		if err := checkMmdc([]byte("```mermaid\ngraph TD\n```\n")); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("no mermaid skips the gate", func(t *testing.T) {
+		t.Setenv("PATH", dir)
+		if err := checkMmdc([]byte("# hi\n\nbody\n")); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
 
 func TestNaturalCompare(t *testing.T) {
 	for _, test := range []struct {

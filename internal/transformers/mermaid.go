@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/malikbenkirane/mdsick/internal/mermaid"
@@ -24,15 +25,21 @@ type Mermaid struct {
 }
 
 type event struct {
-	change *change
-	err    error
+	changes []*change
+	err     error
 }
 
 type change struct {
+	action   int
 	oldChild ast.Node
 	newChild ast.Node
 	parent   ast.Node
 }
+
+const (
+	setNewChild = iota
+	insertAfter
+)
 
 func randHex(n int) (string, error) {
 	b := make([]byte, n)
@@ -45,7 +52,37 @@ func randHex(n int) (string, error) {
 
 func (m *Mermaid) render(code []byte, prepare change) {
 	var svg bytes.Buffer
-	if err := mermaid.Compile(bytes.NewBuffer(code), &svg); err != nil {
+	err := mermaid.Compile(bytes.NewBuffer(code), &svg)
+	if err != nil {
+		var fail *mermaid.Failure
+		if errors.As(err, &fail) {
+			numbered := &codeLiteral{lang: "mermaid"}
+			for i, line := range strings.Split(strings.TrimSuffix(string(code), "\n"), "\n") {
+				numbered.lines = append(numbered.lines, fmt.Sprintf("%d| %s", i+1, line))
+			}
+			numbered.SetBlankPreviousLines(prepare.oldChild.HasBlankPreviousLines())
+
+			logFence := &codeLiteral{lang: "text"}
+			out := strings.Split(strings.TrimSuffix(string(fail.Output), "\n"), "\n")
+			logFence.lines = append(logFence.lines, out...)
+			logFence.SetBlankPreviousLines(true)
+
+			m.event <- event{changes: []*change{
+				{
+					action:   insertAfter,
+					parent:   prepare.parent,
+					oldChild: prepare.oldChild,
+					newChild: logFence,
+				},
+				{
+					action:   setNewChild,
+					parent:   prepare.parent,
+					oldChild: prepare.oldChild,
+					newChild: numbered,
+				},
+			}}
+			return
+		}
 		m.event <- event{err: err}
 		return
 	}
@@ -81,7 +118,7 @@ func (m *Mermaid) render(code []byte, prepare change) {
 	ln.Destination = []byte(f.Name())
 	prepare.newChild = ast.NewImage(ln)
 	prepare.newChild.SetAttributeString("style", "max-height: 500px; width: auto;")
-	m.event <- event{change: &prepare}
+	m.event <- event{changes: []*change{&prepare}}
 }
 
 func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
@@ -110,14 +147,6 @@ func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Con
 				return
 			}
 
-			if event.change != nil {
-				mu.Lock()
-				changes = append(changes, event.change)
-				mu.Unlock()
-			}
-
-			_ = m.bar.Add(1)
-
 			if event.err != nil {
 				var fail *mermaid.Failure
 				if errors.As(event.err, &fail) {
@@ -128,8 +157,24 @@ func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Con
 					mu.Unlock()
 					infraCount++
 				}
-			} else {
-				done++
+				_ = m.bar.Add(1)
+			} else if len(event.changes) > 0 {
+				mu.Lock()
+				changes = append(changes, event.changes...)
+				mu.Unlock()
+				for _, c := range event.changes {
+					if c.action == insertAfter {
+						errCount++
+						break
+					}
+					if c.action == setNewChild {
+						if _, isLiteral := c.newChild.(*codeLiteral); !isLiteral {
+							done++
+							break
+						}
+					}
+				}
+				_ = m.bar.Add(1)
 			}
 
 			if done+errCount+infraCount == count {
@@ -176,7 +221,12 @@ func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Con
 	}
 
 	for _, change := range changes {
-		change.parent.ReplaceChild(change.parent, change.oldChild, change.newChild)
+		switch change.action {
+		case insertAfter:
+			change.parent.InsertAfter(change.parent, change.oldChild, change.newChild)
+		default:
+			change.parent.ReplaceChild(change.parent, change.oldChild, change.newChild)
+		}
 	}
 
 	if len(infraErrs) > 0 {

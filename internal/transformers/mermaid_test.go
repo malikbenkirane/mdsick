@@ -9,6 +9,7 @@ import (
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/util"
 )
 
@@ -51,7 +52,11 @@ func convert(t *testing.T, src string) string {
 	writeShim(t)
 	chdirTemp(t)
 
-	md := goldmark.New(goldmark.WithParserOptions(
+	md := goldmark.New(goldmark.WithRendererOptions(
+		renderer.WithNodeRenderers(util.PrioritizedValue{
+			Value: CodeLiteralRenderer{},
+		}),
+	), goldmark.WithParserOptions(
 		parser.WithASTTransformers(util.PrioritizedValue{
 			Value: &Mermaid{},
 		}),
@@ -86,5 +91,30 @@ func TestFatalHookInjectable(t *testing.T) {
 
 	if len(got) != len(in) {
 		t.Fatalf("hook lost errors:\ngot %d\nexp %d", len(got), len(in))
+	}
+}
+
+func TestFailureArtifactShape(t *testing.T) {
+	html := convert(t, "```mermaid\nFAIL: bad\n```\n")
+
+	margin := `<pre><code class="language-mermaid">1| FAIL: bad
+</code></pre>
+<pre><code class="language-text">mermaid: parse error near line 2
+</code></pre>`
+	if !strings.Contains(html, margin) {
+		t.Fatalf("artifact missing or misplaced:\n%s", html)
+	}
+}
+
+func TestArtifactAdjacencyAndPosition(t *testing.T) {
+	html := convert(t, "before\n\n```mermaid\nFAIL: bad\n```\n\n```mermaid\ngraph TD; A-->B\n```\n\nafter\n")
+
+	iArtifact := strings.Index(html, `class="language-text"`)
+	iImage := strings.Index(html, ".svg")
+	if iArtifact < 0 || iImage < 0 {
+		t.Fatalf("missing artifact or image:\n%s", html)
+	}
+	if iArtifact > iImage {
+		t.Fatalf("artifact not before the healthy diagram:\n%s", html)
 	}
 }

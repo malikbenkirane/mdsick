@@ -33,21 +33,34 @@ func (CodeLiteralRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer
 
 func renderCodeLiteral(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
 	if !entering {
-		w.WriteString("</code></pre>\n")
-		return ast.WalkContinue, nil
+		_, err := w.WriteString("</code></pre>\n")
+		return ast.WalkContinue, err
 	}
 
 	c := node.(*codeLiteral)
 	if c.lang != "" {
-		w.WriteString(`<pre><code class="language-`)
-		w.WriteString(c.lang)
-		w.WriteString(`">`)
-	} else {
-		w.WriteString("<pre><code>")
+		_, err := w.WriteString(`<pre><code class="language-`)
+		if err != nil {
+			return ast.WalkContinue, err
+		}
+		_, err = w.WriteString(c.lang)
+		if err != nil {
+			return ast.WalkContinue, err
+		}
+		_, err = w.WriteString(`">`)
+		if err != nil {
+			return ast.WalkContinue, err
+		}
+	} else if _, err := w.WriteString("<pre><code>"); err != nil {
+		return ast.WalkContinue, err
 	}
 	for _, line := range c.lines {
-		w.Write(util.EscapeHTML([]byte(line)))
-		w.WriteString("\n")
+		if _, err := w.Write(util.EscapeHTML([]byte(line))); err != nil {
+			return ast.WalkContinue, err
+		}
+		if _, err := w.WriteString("\n"); err != nil {
+			return ast.WalkContinue, err
+		}
 	}
 	return ast.WalkContinue, nil
 }

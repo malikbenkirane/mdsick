@@ -10,7 +10,7 @@ directory renders; cross-references between issues (`#21`,
 `[8](closed/8.md)`, `` `43.md` ``) are dead text. After this PR one command
 renders every issue page, rewrites every reference tier so links survive
 issues moving between open and closed, surfaces unresolvable references as
-a warnings block, and opens the landing page in the browser.
+a warnings table, and opens the landing page in the browser.
 
 The first three sub-plans are pure refactors of the existing `cmd/mdsick`
 into `internal/*` packages; the binary's behavior is unchanged (existing
@@ -30,7 +30,7 @@ became `internal/markdown`'s).
 | `feat: issue number index` | `issues.Index`: number → `NN.html` resolution, `Warning` type |
 | `feat: issue reference rewriting` | `issues.Transformer`: all four rewrite tiers, deferred AST mutation after the walk |
 | `refactor: move doc title extraction` | `docsTitle` → exported `markdown.DocTitle` |
-| `feat: issues index writer` | `writeIssuesIndex`: two fixed sections, disclaimers, warnings block |
+| `feat: issues index writer` | `writeIssuesIndex`: two fixed sections, disclaimers, warnings table |
 | `feat: mdsick-issues binary` | cobra binary, `--vcs` flag, args-joined title, e2e tests |
 | `docs(issues): mark issue 9 implemented` | checklist in `docs/issues/9.md` ticked |
 
@@ -71,9 +71,12 @@ all resolve to `8.html`/`21.html` respectively by number alone:
 | Path in prose or code span | `` `43.md` ``, `docs/issues/closed/21.md` | the path becomes a link, label keeps original text |
 
 Fenced code blocks are skipped entirely. Unresolvable references are *not*
-dropped: they append `issues.Warning{Source, Ref}` (e.g. `9.md: #44 —
-unresolvable`) — the index carries a plain `<h2>Warnings</h2>` block so
-broken refs surface to humans instead of stderr.
+dropped: they append `issues.Warning{Source, Ref}` — the index's
+`<h2>Warnings</h2>` block is a two-column table (File | Ref), one
+deduplicated row per broken reference sorted by file (natural) then ref:
+the File cell links the flat page (`<a href="9.html">#9</a>`) and the Ref
+cell is `<code>`-wrapped text (e.g. `<code>#44</code>`) so broken refs
+surface to humans instead of stderr.
 
 ### 4. The landing page (`writeIssuesIndex`)
 Fixed `<h2>Open Issues</h2>` / `<h2>Closed Issues</h2>` sections,
@@ -103,7 +106,7 @@ printed to stderr, browser opened):
 - Open Issues: 14, 13, 11, 9, 7, 6 (reverse numeric order) with titles
 - Closed Issues: 10, 5, 3, 1 (reverse numeric order) with titles
 - a Warnings block flagging unresolvable `#NN`/path references in
-  `9.md`, `14.md`
+  `9.md`, `14.md` (rendered as the two-column warnings table)
 
 ## Verification
 

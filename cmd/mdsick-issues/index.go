@@ -6,6 +6,7 @@ import (
 	"html"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/malikbenkirane/mdsick/internal/issues"
@@ -59,20 +60,41 @@ func writeIssuesIndex(title string, open, closed []issues.Row, warns []issues.Wa
 	}
 
 	if len(warns) > 0 {
-		if _, err = fmt.Fprintf(f, "\t\t<h2>Warnings</h2>\n\t\t<pre>\n"); err != nil {
-			return err
-		}
-		for _, w := range warns {
-			if _, err = fmt.Fprintf(f, "\t\t\t%s\n", html.EscapeString(w.String())); err != nil {
-				return err
-			}
-		}
-		if _, err = f.WriteString("\t\t</pre>\n"); err != nil {
+		if err := writeWarningsTable(f, foldWarnings(warns)); err != nil {
 			return err
 		}
 	}
 
 	_, err = fmt.Fprintf(f, "\t</body>\n</html>\n")
+	return err
+}
+
+// issueNumberOf extracts the flat-page number from a warning's source
+// file ("43.md" -> 43). The List contract guarantees all-digit bases;
+// ok=false is a defensive fallback for direct callers.
+func issueNumberOf(source string) (n int, ok bool) {
+	base := strings.TrimSuffix(source, ".md")
+	n, err := strconv.Atoi(base)
+	if err != nil || base == "" {
+		return 0, false
+	}
+	return n, true
+}
+
+func writeWarningsTable(f *os.File, rows []issues.Warning) (err error) {
+	if _, err = fmt.Fprint(f, "\t\t<h2>Warnings</h2>\n\t\t<table>\n\t\t\t<thead>\n\t\t\t\t<tr><th>File</th><th>Ref</th></tr>\n\t\t\t</thead>\n\t\t\t<tbody>\n"); err != nil {
+		return err
+	}
+	for _, w := range rows {
+		cell := fmt.Sprintf(`<td>%s</td>`, html.EscapeString(w.Source))
+		if n, ok := issueNumberOf(w.Source); ok {
+			cell = fmt.Sprintf(`<td><a href="%d.html">#%d</a></td>`, n, n)
+		}
+		if _, err = fmt.Fprintf(f, "\t\t\t\t<tr>%s<td><code>%s</code></td></tr>\n", cell, html.EscapeString(w.Ref)); err != nil {
+			return err
+		}
+	}
+	_, err = fmt.Fprint(f, "\t\t\t</tbody>\n\t\t</table>\n")
 	return err
 }
 

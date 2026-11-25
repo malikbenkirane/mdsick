@@ -11,7 +11,7 @@ Sub-plans (execution order):
 
 - [x] 01-capture-and-collector — `*Failure` capture API in `Compile`, collector completes on `done + errorCount == count`, bar wording, joint infra-error exit
 - [x] 02-failure-artifact — surviving line-numbered fence, `text` fence with full mmdc output, `insertAfter` change kind
-- [ ] 03-gate-and-regression — pre-flight `mmdc` PATH gate in both modes, fake-`mmdc` shim subprocess regression test
+- [x] 03-gate-and-regression — pre-flight `mmdc` PATH gate in both modes, fake-`mmdc` shim subprocess regression test
 
 Concurrent-eligible batches: `[01], [02, 03]`
 

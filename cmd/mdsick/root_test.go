@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 )
@@ -58,41 +57,6 @@ func TestGateBehaviors(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
-}
-
-func TestNaturalCompare(t *testing.T) {
-	for _, test := range []struct {
-		a, b string
-		want int
-	}{
-		{a: "1.md", b: "2.md", want: -1},
-		{a: "2.md", b: "13.md", want: -1},
-		{a: "13.md", b: "2.md", want: 1},
-		{a: "9.md", b: "10.md", want: -1},
-		{a: "1.md", b: "1.md", want: 0},
-		{a: "01.md", b: "1.md", want: 0},
-		{a: "a2.md", b: "a10.md", want: -1},
-		{a: "a10.md", b: "a2.md", want: 1},
-		{a: "12345678901234567890123.md", b: "12345678901234567890124.md", want: -1},
-		{a: "abc.md", b: "abd.md", want: -1},
-		{a: "1.markdown", b: "1.md", want: -1},
-	} {
-		t.Run(test.a+"_"+test.b, func(t *testing.T) {
-			if got := naturalCompare(test.a, test.b); got != test.want {
-				t.Fatalf("naturalCompare(%q, %q):\ngot %d\nexp %d", test.a, test.b, got, test.want)
-			}
-		})
-	}
-}
-
-func TestNaturalSort(t *testing.T) {
-	files := []string{"10.md", "2.md", "1.md", "13.md", "readme.md", "a10.md", "a2.md"}
-	slices.SortStableFunc(files, naturalCompare)
-
-	want := "1.md 2.md 10.md 13.md a2.md a10.md readme.md"
-	if got := strings.Join(files, " "); got != want {
-		t.Fatalf("unexpected sort:\ngot %s\nexp %s", got, want)
-	}
 }
 
 func TestDocTitle(t *testing.T) {

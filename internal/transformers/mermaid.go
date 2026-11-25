@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -95,7 +96,8 @@ func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Con
 	defer close(m.event)
 	defer close(m.ready)
 
-	var count, done int
+	var count, done, errCount, infraCount int
+	var infraErrs []error
 
 	wg.Go(func() {
 		_, ok := <-m.ready
@@ -105,25 +107,39 @@ func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Con
 		for {
 			event, ok := <-m.event
 			if !ok {
-				fmt.Fprintln(os.Stderr, "mermaid event chan closed")
 				return
 			}
+
+			if event.change != nil {
+				mu.Lock()
+				changes = append(changes, event.change)
+				mu.Unlock()
+			}
+
+			_ = m.bar.Add(1)
 
 			if event.err != nil {
-				fmt.Fprintln(os.Stderr, event.err)
-				continue
+				var fail *mermaid.Failure
+				if errors.As(event.err, &fail) {
+					errCount++
+				} else {
+					mu.Lock()
+					infraErrs = append(infraErrs, event.err)
+					mu.Unlock()
+					infraCount++
+				}
+			} else {
+				done++
 			}
 
-			mu.Lock()
-			changes = append(changes, event.change)
-			_ = m.bar.Add(1)
-			done++
-			if done == count {
-				mu.Unlock()
-				m.bar.Describe("mermaiding done")
+			if done+errCount+infraCount == count {
+				if errCount+infraCount > 0 {
+					m.bar.Describe(fmt.Sprintf("mermaiding done (%d errors)", errCount+infraCount))
+				} else {
+					m.bar.Describe("mermaiding done")
+				}
 				return
 			}
-			mu.Unlock()
 		}
 	})
 
@@ -163,4 +179,15 @@ func (m *Mermaid) Transform(doc *ast.Document, reader text.Reader, pc parser.Con
 		change.parent.ReplaceChild(change.parent, change.oldChild, change.newChild)
 	}
 
+	if len(infraErrs) > 0 {
+		fatal(infraErrs)
+	}
+
+}
+
+var fatal = func(errs []error) {
+	for _, err := range errs {
+		fmt.Fprintln(os.Stderr, err)
+	}
+	os.Exit(1)
 }

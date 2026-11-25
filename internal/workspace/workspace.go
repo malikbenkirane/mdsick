@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	styleRef          = "github-markdown.css"
-	paddingHorizontal = "6.47rem"
-	paddingVertical   = "4rem"
+	StyleRef          = "github-markdown.css"
+	PaddingHorizontal = "6.47rem"
+	PaddingVertical   = "4rem"
 )
 
 // TempWorkspace creates a fresh temp dir, prints its path to stderr,
@@ -43,7 +43,7 @@ func TempWorkspace() (string, error) {
 }
 
 func CopyStyle(to string) (err error) {
-	dst, err := os.Create(filepath.Join(to, styleRef))
+	dst, err := os.Create(filepath.Join(to, StyleRef))
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func RenderFile(to, title string, md goldmark.Markdown, source []byte, doc ast.N
 		</style>
 	</head>
 	<body class="markdown-body">`,
-		styleRef, paddingHorizontal, paddingVertical, title,
+		StyleRef, PaddingHorizontal, PaddingVertical, title,
 	)); err != nil {
 		return err
 	}

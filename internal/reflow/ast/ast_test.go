@@ -134,3 +134,33 @@ func TestBlockquoteParagraphsNestAndWrap(t *testing.T) {
 		})
 	}
 }
+
+func TestListQuoteItemVsPlainTightItem(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "quoted block inside a list item nests under the ListItem",
+			src:  "- > quoted in list\n- plain item\n",
+			want: `` +
+				"Document\n" +
+				"  List\n" +
+				"    ListItem\n" +
+				"      Blockquote\n" +
+				"        Paragraph\n" +
+				"          Text \"quoted in list\"\n" +
+				"    ListItem\n" +
+				"      TextBlock\n" +
+				"        Text \"plain item\"\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := dump(t, tt.src); got != tt.want {
+				t.Errorf("got:\n%v\nwant:\n%v", got, tt.want)
+			}
+		})
+	}
+}

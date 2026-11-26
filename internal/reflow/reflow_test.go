@@ -111,6 +111,36 @@ func TestReflowReadsAndForwardsSource(t *testing.T) {
 			input: "| a | b |\n| - | - |\n| one wrapped over\n| lines | |\n",
 			want:  "| a | b |\n| - | - |\n| one wrapped over\n| lines | |\n",
 		},
+		{
+			name:  "quoted paragraph refills underneath one re-emitted marker run",
+			input: "> wrapping line one\n> wrapping line two\n",
+			want:  "> wrapping line one wrapping line two\n",
+		},
+		{
+			name:  "lazy continuation without its own marker joins the quote",
+			input: "> quoted content\nlazy tail here\n",
+			want:  "> quoted content lazy tail here\n",
+		},
+		{
+			name:  "deeper-opened quote with lazy line refills into the inner paragraph",
+			input: ">> deep quote\n> plain continuation\n",
+			want:  ">> deep quote plain continuation\n",
+		},
+		{
+			name:  "two quote paragraphs separated by a blank quote line stay separate",
+			input: "> first para\n> wrapped\n>\n> second\n",
+			want:  "> first para wrapped\n>\n> second\n",
+		},
+		{
+			name:  "nested quote marker atoms strip and stack from the outermost",
+			input: "> outer block quote\n>> inner nested\n",
+			want:  "> outer block quote\n>> inner nested\n",
+		},
+		{
+			name:  "reflowing an already-refilled quote is a no-op (idempotence)",
+			input: ">> deep quote plain continuation\n",
+			want:  ">> deep quote plain continuation\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

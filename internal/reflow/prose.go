@@ -9,14 +9,12 @@ import (
 // isSpaceTab reports whether b is a space or tab byte.
 func isSpaceTab(b byte) bool { return b == ' ' || b == '\t' }
 
-// contentStart returns the index of a line body's first non-whitespace
-// byte. At this stage lines carry no marker prefixes; sub-plan 02
-// refines this with the marker-run scanner.
+// contentStart returns the index of a line body's first content byte:
+// past its marker run, then past remaining whitespace. Returns
+// len(line) when the line carries no content.
 func contentStart(line []byte) int {
-	for i := range len(line) {
-		if !isSpaceTab(line[i]) {
-			return i
-		}
+	if pe := prefixEnd(line); pe >= 0 {
+		return pe
 	}
 	return len(line)
 }
@@ -52,18 +50,22 @@ func lineBody(source []byte, seg text.Segment) []byte {
 func refillBlock(source []byte, lines *text.Segments) (start int, repl []byte) {
 	first := lines.At(0)
 	start = first.Start
-	// Paragraph line segments exclude leading whitespace, so the first
-	// line's indent sits just before the segment; consume it backward so
-	// the refill output drops the leading indent.
-	for start > 0 && isSpaceTab(source[start-1]) {
-		start--
+	// Top-level paragraph line segments exclude leading whitespace, so
+	// the first line's indent sits just before the segment; consume it
+	// only when the run backs onto a line start, never inside a marker.
+	t := start
+	for t > 0 && isSpaceTab(source[t-1]) {
+		t--
+	}
+	if t == 0 || source[t-1] == '\n' {
+		start = t
 	}
 	var out bytes.Buffer
 	for i := 0; i < lines.Len(); i++ {
 		body := lineBody(source, lines.At(i))
+		body = body[contentStart(body):]
 		if i > 0 {
 			out.WriteByte(' ')
-			body = body[contentStart(body):]
 		}
 		if i < lines.Len()-1 {
 			body = body[:len(body)-trailingWS(body)]

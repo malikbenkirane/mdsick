@@ -91,6 +91,26 @@ func TestReflowReadsAndForwardsSource(t *testing.T) {
 			input: "first para\nwrapped\n\nsecond\n",
 			want:  "first para wrapped\n\nsecond\n",
 		},
+		{
+			name:  "wrapped lines inside loose and tight list items refill; markers and indents preserved byte-exactly",
+			input: "- some list item\n  paragraph\n  - some sublist item\n    to reflow\n  - another item\n- one more item\n",
+			want:  "- some list item paragraph\n  - some sublist item to reflow\n  - another item\n- one more item\n",
+		},
+		{
+			name:  "ordered markers survive byte-exactly, no renumbering",
+			input: "1. one\n   wrapped continuation\n10. ten stays ten\n",
+			want:  "1. one wrapped continuation\n10. ten stays ten\n",
+		},
+		{
+			name:  "list marker lookalike text inside an item is not treated as a marker",
+			input: "- a**bold* start\n  continues here\n",
+			want:  "- a**bold* start continues here\n",
+		},
+		{
+			name:  "a wrapped GFM table row is immune, byte-exactly",
+			input: "| a | b |\n| - | - |\n| one wrapped over\n| lines | |\n",
+			want:  "| a | b |\n| - | - |\n| one wrapped over\n| lines | |\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

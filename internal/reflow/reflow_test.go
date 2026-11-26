@@ -166,6 +166,31 @@ func TestReflowReadsAndForwardsSource(t *testing.T) {
 			input: "- item before  \n  item after\n",
 			want:  "- item before \\\n  item after\n",
 		},
+		{
+			name: "a loose list keeps its blank line: too-narrow normalization is out of scope",
+			input: "- mine\n\n- two\n",
+			want:  "- mine\n\n- two\n",
+		},
+		{
+			name:  "a blank quote line inside a blockquote is preserved byte-exactly",
+			input: "> wrap inside\n> more\n\n> second\n",
+			want:  "> wrap inside more\n\n> second\n",
+		},
+		{
+			name:  "fenced code, indented code, html block and thematic break pass through untouched",
+			input: "```go\nx\n```\n\n    indented\n\n<div>\nraw\n</div>\n\n---\n\n# Heading setext-free\n",
+			want:  "```go\nx\n```\n\n    indented\n\n<div>\nraw\n</div>\n\n---\n\n# Heading setext-free\n",
+		},
+		{
+			name:  "a setext heading underlines its wrapped lines, left untouched",
+			input: "Heading\nsecond\n===\n",
+			want:  "Heading\nsecond\n===\n",
+		},
+		{
+			name:  "a wrapped GFM table row is immune, byte-exactly",
+			input: "| a | b |\n| - | - |\n| very long cell content that wraps\n| across |\n",
+			want:  "| a | b |\n| - | - |\n| very long cell content that wraps\n| across |\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

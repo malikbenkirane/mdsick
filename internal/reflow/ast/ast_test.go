@@ -231,3 +231,28 @@ func TestTightVsLooseListItems(t *testing.T) {
 		})
 	}
 }
+
+func TestSetextHeadingHoldsWrappedLines(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "setext underline consumes every preceding nonblank line",
+			src:  "Heading\nsecond\n===\n",
+			want: `` +
+				"Document\n" +
+				"  Heading level=1\n" +
+				"    Text \"Heading\" (soft)\n" +
+				"    Text \"second\"\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := dump(t, tt.src); got != tt.want {
+				t.Errorf("got:\n%v\nwant:\n%v", got, tt.want)
+			}
+		})
+	}
+}

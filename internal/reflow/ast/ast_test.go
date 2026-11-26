@@ -164,3 +164,41 @@ func TestListQuoteItemVsPlainTightItem(t *testing.T) {
 		})
 	}
 }
+
+func TestNestedSublistInMixedList(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "item text and wrapped continuation land in one TextBlock",
+			src:  "- some list item\n  paragraph\n  - some sublist item\n    to reflow\n  - another item\n- one more item\n",
+			want: `` +
+				"Document\n" +
+				"  List\n" +
+				"    ListItem\n" +
+				"      TextBlock\n" +
+				"        Text \"some list item\" (soft)\n" +
+				"        Text \"paragraph\"\n" +
+				"      List\n" +
+				"        ListItem\n" +
+				"          TextBlock\n" +
+				"            Text \"some sublist item\" (soft)\n" +
+				"            Text \"to reflow\"\n" +
+				"        ListItem\n" +
+				"          TextBlock\n" +
+				"            Text \"another item\"\n" +
+				"    ListItem\n" +
+				"      TextBlock\n" +
+				"        Text \"one more item\"\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := dump(t, tt.src); got != tt.want {
+				t.Errorf("got:\n%v\nwant:\n%v", got, tt.want)
+			}
+		})
+	}
+}

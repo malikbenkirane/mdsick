@@ -35,3 +35,28 @@ func TestParagraphContinuousLinesJoin(t *testing.T) {
 		})
 	}
 }
+
+func TestParagraphHardBreakFlag(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "two trailing spaces mark a hard break, without newline in emphasis output",
+			src:  "hello  \nworld\n",
+			want: `` +
+				"Document\n" +
+				"  Paragraph\n" +
+				"    Text \"hello\" (hard)\n" +
+				"    Text \"world\"\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := dump(t, tt.src); got != tt.want {
+				t.Errorf("got:\n%v\nwant:\n%v", got, tt.want)
+			}
+		})
+	}
+}

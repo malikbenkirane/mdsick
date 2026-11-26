@@ -60,3 +60,29 @@ func TestParagraphHardBreakFlag(t *testing.T) {
 		})
 	}
 }
+
+func TestEmphasisWrapSpansBreak(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "emphasis node holds both halves of a wrapped run",
+			src:  "*em\nbody*\n",
+			want: `` +
+				"Document\n" +
+				"  Paragraph\n" +
+				"    Emphasis\n" +
+				"      Text \"em\" (soft)\n" +
+				"      Text \"body\"\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := dump(t, tt.src); got != tt.want {
+				t.Errorf("got:\n%v\nwant:\n%v", got, tt.want)
+			}
+		})
+	}
+}

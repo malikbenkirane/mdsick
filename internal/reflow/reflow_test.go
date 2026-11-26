@@ -36,6 +36,36 @@ func TestReflowReadsAndForwardsSource(t *testing.T) {
 			input: "some paragraph\n",
 			want:  "some paragraph\n",
 		},
+		{
+			name:  "two blank lines between top-level blocks collapse to one",
+			input: "a\n\n\n\nb\n",
+			want:  "a\n\nb\n",
+		},
+		{
+			name:  "exactly one blank line between blocks stays byte-identical",
+			input: "a\n\nb\n",
+			want:  "a\n\nb\n",
+		},
+		{
+			name:  "adjacent top-level lines without a blank line stay untouched",
+			input: "```go\nx\n```\nnext para\n",
+			want:  "```go\nx\n```\nnext para\n",
+		},
+		{
+			name:  "single blank line after last block collapses the output trailing newline",
+			input: "a\n\n",
+			want:  "a\n",
+		},
+		{
+			name:  "blank-only input yields a POSIX newline",
+			input: "  \n\n",
+			want:  "\n",
+		},
+		{
+			name:  "missing final newline is guaranteed",
+			input: "a",
+			want:  "a\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -11,6 +11,7 @@ func reflow(source []byte) []byte {
 	}
 	doc := parse(source)
 	var edits []edit
+	collectProse(doc, source, &edits)
 	normalizeTop(doc, source, &edits)
 	out := apply(source, edits)
 	if len(out) == 0 {
@@ -27,6 +28,9 @@ func reflow(source []byte) []byte {
 // blankCount counts blank lines in region; region starts at a newline and
 // spans the gap between two consecutive top-level blocks.
 func blankCount(region []byte) int {
+	if len(region) == 0 {
+		return 0
+	}
 	count := 0
 	for line := range bytes.SplitSeq(region[1:], []byte("\n")) {
 		if len(bytes.TrimSpace(line)) == 0 {
@@ -52,12 +56,6 @@ func normalizeTop(doc ast.Node, source []byte, edits *[]edit) {
 		s, e := blockRange(b)
 		if s < 0 {
 			continue // zero-line block edge; leave the source span untouched
-		}
-		if b.Kind() == ast.KindParagraph {
-			start, repl := refillBlock(source, b.Lines())
-			if !bytes.Equal(repl, source[start:e]) {
-				*edits = append(*edits, edit{start: start, stop: e, repl: repl})
-			}
 		}
 		if prevEnd >= 0 {
 			region := source[prevEnd:s]
@@ -88,13 +86,39 @@ func normalizeTop(doc ast.Node, source []byte, edits *[]edit) {
 	}
 }
 
-// blockRange returns the start and end byte offsets of a block's source lines.
-// Line segments exclude the terminating newline; trailing spaces on the last
-// line belong to the block.
+// blockRange returns the start and end byte offsets covering a block's
+// source lines. A container node's span comes from its descendants,
+// since List and Blockquote carry no line segments of their own.
 func blockRange(b ast.Node) (int, int) {
-	seg := b.Lines()
-	if seg.Len() == 0 {
+	min, max := -1, -1
+	var visit func(n ast.Node)
+	visit = func(n ast.Node) {
+		// Inline nodes panic on Lines().
+		if n.Type() != ast.TypeInline {
+			if segs := n.Lines(); segs.Len() != 0 {
+				if first := segs.At(0).Start; min < 0 || first < min {
+					min = first
+				}
+				if last := segs.At(segs.Len() - 1).Stop; last > max {
+					max = last
+				}
+			}
+		}
+		// Children of leaf text blocks are inline nodes; inline nodes
+		// panic on Lines().
+		switch n.Kind() {
+		case ast.KindParagraph, ast.KindTextBlock:
+			return
+		}
+		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+			if c.Type() != ast.TypeInline {
+				visit(c)
+			}
+		}
+	}
+	visit(b)
+	if min < 0 {
 		return -1, -1
 	}
-	return seg.At(0).Start, seg.At(seg.Len() - 1).Stop
+	return min, max
 }

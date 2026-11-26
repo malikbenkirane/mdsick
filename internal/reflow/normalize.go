@@ -25,15 +25,37 @@ func reflow(source []byte) []byte {
 	return out
 }
 
-// blankCount counts blank lines in region; region starts at a newline and
-// spans the gap between two consecutive top-level blocks.
-func blankCount(region []byte) int {
+// gapPieces splits the region between two blocks into its lines.
+func gapPieces(region []byte) [][]byte { return bytes.Split(region, []byte("\n")) }
+
+// gapIsBlankLines reports whether every line of the region is pure
+// whitespace. Parser residue that lives outside block line segments
+// (fence closers, setext underlines, thematic dashes) shows up as
+// non-whitespace pieces; such regions are never touched.
+func gapIsBlankLines(region []byte) bool {
 	if len(region) == 0 {
+		return false
+	}
+	for _, p := range gapPieces(region) {
+		if len(bytes.TrimSpace(p)) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// blankCount counts blank lines strictly between the two blocks: it
+// excludes the first piece (trailing whitespace of the previous block's
+// last line) and the last piece (leading indent of the next block's
+// first line).
+func blankCount(region []byte) int {
+	if !gapIsBlankLines(region) {
 		return 0
 	}
+	pieces := gapPieces(region)
 	count := 0
-	for line := range bytes.SplitSeq(region[1:], []byte("\n")) {
-		if len(bytes.TrimSpace(line)) == 0 {
+	for j := 1; j < len(pieces)-1; j++ {
+		if len(bytes.TrimSpace(pieces[j])) == 0 {
 			count++
 		}
 	}
@@ -60,7 +82,11 @@ func normalizeTop(doc ast.Node, source []byte, edits *[]edit) {
 		if prevEnd >= 0 {
 			region := source[prevEnd:s]
 			if blankCount(region) >= 2 {
-				*edits = append(*edits, edit{start: prevEnd, stop: s, repl: []byte("\n\n")})
+				// Whitespace regions are blank runs; the last piece is the
+				// next block's leading indent and must survive the collapse.
+				pieces := gapPieces(region)
+				repl := append([]byte("\n\n"), pieces[len(pieces)-1]...)
+				*edits = append(*edits, edit{start: prevEnd, stop: s, repl: repl})
 			}
 		}
 		prevEnd = e
@@ -70,15 +96,12 @@ func normalizeTop(doc ast.Node, source []byte, edits *[]edit) {
 	// the first newline of the tail, outside its segment) stays intact.
 	if prevEnd < len(source) {
 		region := source[prevEnd:]
-		ws := 0
-		for ws < len(region) && isSpaceTab(region[ws]) {
-			ws++
-		}
-		if ws < len(region) && region[ws] == '\n' {
-			tail := region[:ws+1]
-			if len(region) > ws+1 {
-				tail = append(tail[:ws:ws], '\n')
-			}
+		if gapIsBlankLines(region) {
+			pieces := gapPieces(region)
+			// The first piece is the last line's own trailing whitespace
+			// (outside its segment); keep it and one newline.
+			tail := append([]byte{}, pieces[0]...)
+			tail = append(tail, '\n')
 			if !bytes.Equal(tail, region) {
 				*edits = append(*edits, edit{start: prevEnd, stop: len(source), repl: tail})
 			}

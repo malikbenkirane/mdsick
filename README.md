@@ -34,6 +34,13 @@ bun i -g @mermaid-js/mermaid-cli
 cat README.md | mdsick
 ```
 
+```sh
+cat doc.md | mdsick-reflow | pbcopy
+```
+
+Refills hard-wrapped Markdown so single newlines don't turn into hard
+breaks when pasted into GitHub comment boxes.
+
 The rendered HTML is written to a temp directory (path is printed to stderr) and
 opened in your browser. Mermaid blocks render with a progress bar; SVGs inline
 as images capped at 500px height.

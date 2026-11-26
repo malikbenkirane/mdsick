@@ -66,6 +66,31 @@ func TestReflowReadsAndForwardsSource(t *testing.T) {
 			input: "a",
 			want:  "a\n",
 		},
+		{
+			name:  "two-line paragraph joins at the soft break with one space",
+			input: "hello\nworld\n",
+			want:  "hello world\n",
+		},
+		{
+			name:  "three lines join with one space each; last line keeps trailing space",
+			input: "a\nb\nc  \n",
+			want:  "a b c  \n",
+		},
+		{
+			name:  "leading indent of the first line and per-line indents are trimmed",
+			input: "  indent\n  cont\n",
+			want:  "indent cont\n",
+		},
+		{
+			name:  "wrapped inline construct joins naturally, Focus inside Emphasis",
+			input: "some *em\nbody* text\n",
+			want:  "some *em body* text\n",
+		},
+		{
+			name:  "two paragraphs separated by one blank line stay separate",
+			input: "first para\nwrapped\n\nsecond\n",
+			want:  "first para wrapped\n\nsecond\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

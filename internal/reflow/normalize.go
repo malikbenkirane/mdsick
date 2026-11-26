@@ -53,6 +53,12 @@ func normalizeTop(doc ast.Node, source []byte, edits *[]edit) {
 		if s < 0 {
 			continue // zero-line block edge; leave the source span untouched
 		}
+		if b.Kind() == ast.KindParagraph {
+			start, repl := refillBlock(source, b.Lines())
+			if !bytes.Equal(repl, source[start:e]) {
+				*edits = append(*edits, edit{start: start, stop: e, repl: repl})
+			}
+		}
 		if prevEnd >= 0 {
 			region := source[prevEnd:s]
 			if blankCount(region) >= 2 {
@@ -61,9 +67,24 @@ func normalizeTop(doc ast.Node, source []byte, edits *[]edit) {
 		}
 		prevEnd = e
 	}
-	// Trailing blank runs after the last block collapse to one newline.
+	// Trailing blank runs after the last block collapse to one newline,
+	// while the last line's own trailing whitespace (sitting just before
+	// the first newline of the tail, outside its segment) stays intact.
 	if prevEnd < len(source) {
-		*edits = append(*edits, edit{start: prevEnd, stop: len(source), repl: []byte("\n")})
+		region := source[prevEnd:]
+		ws := 0
+		for ws < len(region) && isSpaceTab(region[ws]) {
+			ws++
+		}
+		if ws < len(region) && region[ws] == '\n' {
+			tail := region[:ws+1]
+			if len(region) > ws+1 {
+				tail = append(tail[:ws:ws], '\n')
+			}
+			if !bytes.Equal(tail, region) {
+				*edits = append(*edits, edit{start: prevEnd, stop: len(source), repl: tail})
+			}
+		}
 	}
 }
 

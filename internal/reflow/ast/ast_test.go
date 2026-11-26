@@ -202,3 +202,32 @@ func TestNestedSublistInMixedList(t *testing.T) {
 		})
 	}
 }
+
+func TestTightVsLooseListItems(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "blank line between items gives each a Paragraph",
+			src:  "- mine\n\n- two\n",
+			want: `` +
+				"Document\n" +
+				"  List\n" +
+				"    ListItem\n" +
+				"      Paragraph\n" +
+				"        Text \"mine\"\n" +
+				"    ListItem\n" +
+				"      Paragraph\n" +
+				"        Text \"two\"\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := dump(t, tt.src); got != tt.want {
+				t.Errorf("got:\n%v\nwant:\n%v", got, tt.want)
+			}
+		})
+	}
+}

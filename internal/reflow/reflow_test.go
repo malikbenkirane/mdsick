@@ -141,6 +141,31 @@ func TestReflowReadsAndForwardsSource(t *testing.T) {
 			input: ">> deep quote plain continuation\n",
 			want:  ">> deep quote plain continuation\n",
 		},
+		{
+			name:  "two-space wrap line becomes a hard break re-emitted as backslash",
+			input: "hello  \nworld\n",
+			want:  "hello \\\nworld\n",
+		},
+		{
+			name:  "a line already ending with a backslash is left untouched",
+			input: "hello \\\nworld\n",
+			want:  "hello \\\nworld\n",
+		},
+		{
+			name:  "literal backslash inside a two-space wrap line keeps the seam raw",
+			input: "a\\  \nnext\nwide\n",
+			want:  "a\\  \nnext wide\n",
+		},
+		{
+			name:  "hard break inside a quote keeps the marker on both sides",
+			input: "> wrapping one  \n> after the break\n",
+			want:  "> wrapping one \\\n> after the break\n",
+		},
+		{
+			name:  "hard break inside a list item keeps the continuation indent raw",
+			input: "- item before  \n  item after\n",
+			want:  "- item before \\\n  item after\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

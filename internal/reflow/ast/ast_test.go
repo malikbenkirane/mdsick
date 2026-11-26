@@ -289,3 +289,47 @@ func TestTableHeaderAndBodyRows(t *testing.T) {
 		})
 	}
 }
+
+func TestImmuneBlocksWrapAndUnwrap(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "one fenced code block built by three source lines",
+			src:  "```go\nx\n```\n",
+			want: `` +
+				"Document\n" +
+				"  FencedCodeBlock language=\"go\"\n",
+		},
+		{
+			name: "one indented code block holding two lines",
+			src:  "    indented code\n    more\n",
+			want: `` +
+				"Document\n" +
+				"  CodeBlock\n",
+		},
+		{
+			name: "one html block built by three source lines",
+			src:  "<div>\nraw html\n</div>\n",
+			want: `` +
+				"Document\n" +
+				"  HTMLBlock\n",
+		},
+		{
+			name: "thematic break built by one line",
+			src:  "---\n",
+			want: `` +
+				"Document\n" +
+				"  ThematicBreak\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := dump(t, tt.src); got != tt.want {
+				t.Errorf("got:\n%v\nwant:\n%v", got, tt.want)
+			}
+		})
+	}
+}

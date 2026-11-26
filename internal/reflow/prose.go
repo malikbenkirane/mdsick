@@ -47,8 +47,24 @@ func lineBody(source []byte, seg text.Segment) []byte {
 // the last line, which keeps its trailing whitespace byte-exactly per the
 // seam rule). Returns the byte offset where the refillable content starts
 // and the replacement bytes spliced over [start, lastLineStop).
+// refillBlock joins the soft-broken lines of a prose block with one space
+// per seam. Seam classification is decided from the bytes of the line
+// before the newline:
+//
+//   - a backslash as the last content byte: the seam stays raw (it is
+//     already the canonical hard-break form, or the backslash is literal
+//     content inside a two-space run);
+//   - a trailing whitespace run of two or more: the run collapses to one
+//     backslash terminating the line ("\\\n"), and the following line
+//     keeps its own prefix and content byte-exactly;
+//   - otherwise: a pure soft break — trailing whitespace and the next
+//     line's marker run and indentation are trimmed, one space joins.
+//
+// Returns the offset where the refillable content starts and the
+// replacement bytes to splice over [start, lastLineStop).
 func refillBlock(source []byte, lines *text.Segments) (start int, repl []byte) {
 	first := lines.At(0)
+	last := lines.At(lines.Len() - 1)
 	start = first.Start
 	// Top-level paragraph line segments exclude leading whitespace, so
 	// the first line's indent sits just before the segment; consume it
@@ -61,16 +77,37 @@ func refillBlock(source []byte, lines *text.Segments) (start int, repl []byte) {
 		start = t
 	}
 	var out bytes.Buffer
-	for i := 0; i < lines.Len(); i++ {
-		body := lineBody(source, lines.At(i))
-		body = body[contentStart(body):]
-		if i > 0 {
+	pos := first.Start + contentStart(lineBody(source, first))
+	for i := 0; i < lines.Len()-1; i++ {
+		prev, next := lines.At(i), lines.At(i+1)
+		prevBody := lineBody(source, prev)
+		if len(prevBody) > 0 && prevBody[len(prevBody)-1] == '\n' {
+			prevBody = prevBody[:len(prevBody)-1]
+		}
+		pw := trailingWS(prevBody)
+		wsStart := prev.Start + len(prevBody) - pw
+		keep := prevBody[:len(prevBody)-pw]
+		csNext := next.Start + contentStart(lineBody(source, next))
+		switch {
+		case len(keep) > 0 && keep[len(keep)-1] == '\\':
+			// Raw seam: the line already carries its termination bytes.
+			out.Write(source[pos:prev.Stop])
+			pos = csNext
+		case pw >= 2:
+			// Hard break: the trailing run collapses to one space plus
+			// one backslash; the continuation keeps its own prefix and
+			// indentation raw.
+			out.Write(source[pos:wsStart])
 			out.WriteByte(' ')
+			out.WriteByte('\\')
+			out.WriteByte('\n')
+			pos = prev.Stop
+		default:
+			out.Write(source[pos:wsStart])
+			out.WriteByte(' ')
+			pos = csNext
 		}
-		if i < lines.Len()-1 {
-			body = body[:len(body)-trailingWS(body)]
-		}
-		out.Write(body)
 	}
+	out.Write(source[pos:last.Stop])
 	return start, out.Bytes()
 }

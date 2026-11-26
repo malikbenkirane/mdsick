@@ -256,3 +256,36 @@ func TestSetextHeadingHoldsWrappedLines(t *testing.T) {
 		})
 	}
 }
+
+func TestTableHeaderAndBodyRows(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "table parses to TableHeader plus one TableRow",
+			src:  "a | b\n--- | ---\n1 | 2\n",
+			want: `` +
+				"Document\n" +
+				"  Table\n" +
+				"    TableHeader\n" +
+				"      TableCell\n" +
+				"        Text \"a\"\n" +
+				"      TableCell\n" +
+				"        Text \"b\"\n" +
+				"    TableRow\n" +
+				"      TableCell\n" +
+				"        Text \"1\"\n" +
+				"      TableCell\n" +
+				"        Text \"2\"\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := dump(t, tt.src); got != tt.want {
+				t.Errorf("got:\n%v\nwant:\n%v", got, tt.want)
+			}
+		})
+	}
+}

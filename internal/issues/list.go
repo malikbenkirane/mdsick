@@ -59,7 +59,8 @@ func listNames(dir, side string) ([]Row, error) {
 		base := strings.TrimSuffix(e.Name(), ".md")
 		n, convErr := strconv.Atoi(base)
 		if convErr != nil || !isDigitsOnly(base) {
-			return nil, fmt.Errorf("issues: unexpected issue filename %q in %s (want NN.md)", e.Name(), side)
+			fmt.Fprintf(os.Stderr, "issues: skipping %q in %s, not NN.md\n", e.Name(), side)
+			continue
 		}
 		rows = append(rows, Row{Number: n, Base: e.Name(), Side: side})
 	}

@@ -45,12 +45,14 @@ func TestList(t *testing.T) {
 		}
 	})
 
-	t.Run("non numeric filename fails hard", func(t *testing.T) {
-		seedIssues(t, []string{"7.md", "notes.md"}, nil)
-		_, _, err := List(".")
-		if err == nil || !strings.Contains(err.Error(), "notes.md") {
-			t.Fatalf("expected numeric name error, got %v", err)
+	t.Run("non numeric filenames are skipped", func(t *testing.T) {
+		seedIssues(t, []string{"7.md", "28-original-grill-me.md"}, []string{"9.md", "notes.md", "9-original.md"})
+		open, closed, err := List(".")
+		if err != nil {
+			t.Fatal(err)
 		}
+		assertOrder(t, open, "7")
+		assertOrder(t, closed, "9")
 	})
 
 	t.Run("duplicate number in both dirs fails hard", func(t *testing.T) {
